@@ -1,0 +1,68 @@
+name: Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_full:
+        description: "Run against the real CFPB database (large download, CPU-heavy)"
+        type: boolean
+        default: false
+      run_backtest:
+        description: "Also run the Phase 5 backtest"
+        type: boolean
+        default: false
+  schedule:
+    # Weekly Monday 03:00 UTC refresh on the smoke profile
+    - cron: "0 3 * * 1"
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SENTINEFIN_SMOKE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e .
+
+      - name: Run pipeline (smoke)
+        if: ${{ github.event_name == 'schedule' || !inputs.run_full }}
+        run: sentinefin pipeline --smoke
+
+      - name: Run pipeline (full CFPB data)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full }}
+        env:
+          SENTINEFIN_SMOKE: ""
+        run: |
+          sentinefin ingest
+          sentinefin embed
+          sentinefin cluster
+          sentinefin drift
+
+      - name: Backtest (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_backtest }}
+        run: sentinefin backtest --smoke
+
+      - name: Build HTML report
+        run: sentinefin report
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinefin-run-${{ github.run_id }}
+          path: |
+            outputs/
+            reports/sentinefin_report.html
+            reports/backtest_cases.md
+          if-no-files-found: ignore

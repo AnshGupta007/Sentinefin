@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SENTINEFIN_SMOKE: "1"
+      HF_HUB_OFFLINE: "0"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package with dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check src tests
+
+      - name: Format check (ruff)
+        run: ruff format --check src tests
+        continue-on-error: true  # formatting drift should not fail CI yet
+
+      - name: Unit tests
+        run: pytest -q --timeout=300
+
+      - name: Smoke pipeline (phases 1-4 end to end, offline encoder)
+        run: sentinefin pipeline --smoke --skip-eda
+
+      - name: Build report artifact
+        run: sentinefin report
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinefin-smoke-outputs
+          path: |
+            outputs/
+            reports/sentinefin_report.html
+          if-no-files-found: ignore

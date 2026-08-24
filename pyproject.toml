@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinefin"
+version = "0.1.0"
+description = "SentinelFin: detect emergent consumer-finance harm patterns from CFPB complaint narratives using deep learning."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "scikit-learn",
+    "matplotlib",
+    "torch",
+    "sentence-transformers",
+    "umap-learn",
+]
+
+[project.optional-dependencies]
+llm = ["openai"]
+dev = ["pytest", "pytest-timeout", "pytest-cov", "ruff"]
+
+[project.scripts]
+sentinefin = "sentinefin.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sentinefin*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+timeout = 600
+markers = [
+    "slow: slow tests (full smoke pipeline), skipped unless SENTINEFIN_SMOKE=1",
+    "gpu: tests that require CUDA, skipped unless a GPU is present",
+]
