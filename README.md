@@ -60,7 +60,8 @@ tests/              pytest suite incl. end-to-end smoke test
 data/raw|processed  regenerable datasets (gitignored)
 outputs/            metrics, plots, ranked emergent clusters
 reports/            pre-registered backtest cases + HTML report
-docs/               master prompt and PRD
+docs/               master prompt, PRD, and model accuracy metrics
 ```
 
-See `docs/SentinelFin_Master_Prompt.md` for the phase roadmap and acceptance criteria.
+- See [`docs/MODEL_PERFORMANCE_METRICS.md`](docs/MODEL_PERFORMANCE_METRICS.md) for full accuracy benchmarks (90.8% test accuracy), loss curves, and architecture details.
+- See `docs/SentinelFin_Master_Prompt.md` for the phase roadmap and acceptance criteria.
