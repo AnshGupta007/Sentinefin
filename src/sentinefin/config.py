@@ -62,10 +62,10 @@ class EmbeddingConfig:
 class MLPConfig:
     """Phase 2: neural baseline classifier."""
 
-    hidden_dims: tuple[int, ...] = _profile((64, 32), (128, 64))
-    epochs: int = _profile(2, 20)
-    lr: float = 1e-3
-    batch_size: int = _profile(64, 256)
+    hidden_dims: tuple[int, ...] = _profile((64, 32), (512, 256, 128))
+    epochs: int = _profile(2, 40)
+    lr: float = 2e-3
+    batch_size: int = _profile(64, 128)
     dropout: float = 0.2
     weight_decay: float = 1e-4
 

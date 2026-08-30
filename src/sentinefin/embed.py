@@ -83,7 +83,10 @@ def embed_panel(panel: pd.DataFrame, config: EmbeddingConfig | None = None,
 
     set_seed(cfg.seed)
     encoder, backend = load_encoder(cfg)
-    texts = panel[NARRATIVE_COL].astype(str).tolist()
+    if "issue" in panel.columns and panel["issue"].notna().any():
+        texts = ("Issue: " + panel["issue"].fillna("").astype(str) + ". Narrative: " + panel[NARRATIVE_COL].astype(str)).tolist()
+    else:
+        texts = panel[NARRATIVE_COL].astype(str).tolist()
     logger.info("Embedding %d narratives with %s ...", len(texts), backend)
     vectors = encoder.encode(texts, batch_size=cfg.batch_size, show_progress_bar=True)
     vectors = np.asarray(vectors, dtype=np.float32)
