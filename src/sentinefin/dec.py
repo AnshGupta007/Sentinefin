@@ -172,32 +172,47 @@ def train_dec(
     prev_assign: np.ndarray | None = None
     stop = False
     it = 0
+    delta = 1.0
+    p_tensor: torch.Tensor | None = None
+    update_interval = max(1, min(cfg.update_interval, 50))
+    max_iters = (
+        cfg.finetune_iters
+        if init_state is None
+        else max(10, cfg.finetune_epochs_per_window * (len(data) // cfg.batch_size + 1))
+    )
+
     while not stop:
-        q = _soft_assign_tensor(model, data, cfg.batch_size)
-        p_tensor = target_distribution(q)
+        if it % update_interval == 0:
+            q_full = _soft_assign_tensor(model, data, cfg.batch_size)
+            assign_now = q_full.argmax(dim=1).cpu().numpy()
+            delta = (
+                float((assign_now != prev_assign).mean())
+                if prev_assign is not None
+                else 1.0
+            )
+            prev_assign = assign_now
+            p_tensor = target_distribution(q_full)
+            if it > 0 and delta < cfg.tol:
+                logger.info("DEC converged at iter %d with label change %.4f < tol %.4f", it, delta, cfg.tol)
+                break
+
         model.train()
         perm = torch.randperm(len(data))
         kl_total = 0.0
         for start in range(0, len(data), cfg.batch_size):
             idx = perm[start : start + cfg.batch_size]
             opt.zero_grad()
-            q, _, _ = model(data[idx])
+            q_batch = model.soft_assign(model.autoencoder.encoder(data[idx]))
             loss = F.kl_div(
-                (q + 1e-9).log(), p_tensor[idx], reduction="batchmean", log_target=False
+                (q_batch + 1e-9).log(), p_tensor[idx], reduction="batchmean", log_target=False
             )
             loss.backward()
             opt.step()
             kl_total += float(loss.item()) * len(idx)
         it += 1
-        assign_now = q.argmax(dim=1).cpu().numpy()
-        delta = (
-            float((assign_now != prev_assign).mean())
-            if prev_assign is not None
-            else 1.0
-        )
-        prev_assign = assign_now
-        logger.info("DEC iter %d/%d KL %.4f label-change %.4f", it, cfg.finetune_iters, kl_total / max(len(data),1), delta)
-        if it >= cfg.finetune_iters or delta < cfg.tol:
+        if it % update_interval == 0 or it == 1:
+            logger.info("DEC iter %d/%d KL %.4f delta %.4f", it, max_iters, kl_total / max(len(data), 1), delta)
+        if it >= max_iters:
             stop = True
 
     metrics = {

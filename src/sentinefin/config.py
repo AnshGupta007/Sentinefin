@@ -52,7 +52,7 @@ class EmbeddingConfig:
     """Phase 2: representation learning."""
 
     model_name: str = "all-MiniLM-L6-v2"
-    batch_size: int = _profile(16, 64)
+    batch_size: int = _profile(16, 512)
     # Deterministic offline fallback used when the HF hub is unreachable (CI).
     hash_dim: int = _profile(128, 256)
     seed: int = 17

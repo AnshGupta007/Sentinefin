@@ -20,11 +20,14 @@ with retrospective backtesting. Built from `docs/SentinelFin_Master_Prompt.md`.
 ```powershell
 pip install -e ".[dev]"
 
-# Full pipeline on the real CFPB database (~large download)
+# Create a lightweight, balanced dataset (e.g. 20,000 complaints) for training on resource-constrained hardware
+sentinefin sample --size 20000 --output data/raw/complaints_small.csv
+
+# Run full pipeline on the sampled dataset
 sentinefin pipeline
 
 # Or stage by stage
-sentinefin ingest --raw path\to\complaints.csv.zip
+sentinefin ingest --raw data/raw/complaints_small.csv
 sentinefin embed
 sentinefin cluster
 sentinefin drift

@@ -69,7 +69,8 @@ def match_case_in_alerts(
 def months_between(later_window: str, earlier_date: str) -> float:
     later = pd.Period(later_window, freq="M")
     earlier = pd.Period(pd.Timestamp(earlier_date), freq="M")
-    return float(later - earlier)
+    diff = later - earlier
+    return float(diff.n if hasattr(diff, "n") else diff)
 
 
 def run_backtest(
@@ -141,8 +142,9 @@ def run_backtest(
             lines.append(f"- Lead time: {r.lead_time_months:.1f} months")
         else:
             lines.append(f"- Notes: {r.notes or 'system did not flag this pattern'}")
-        lines.append("")
-    lines.append(f"False-alarm rate estimate: {false_alarm_rate:.2f}")
+    rate_val = false_alarm_rate.get("rate") if isinstance(false_alarm_rate, dict) else false_alarm_rate
+    rate_str = f"{rate_val:.2f}" if isinstance(rate_val, (int, float)) else "N/A"
+    lines.append(f"False-alarm rate estimate: {rate_str}")
     (_cfg.OUTPUTS_DIR / "backtest_report.md").write_text("\n".join(lines), encoding="utf-8")
     return report
 

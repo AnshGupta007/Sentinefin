@@ -58,6 +58,10 @@ class HashedBoWEncoder:
 
 def load_encoder(config: EmbeddingConfig):
     """Try the pretrained Transformer first; fall back to hashed BoW."""
+    import os
+    if os.environ.get("SENTINEFIN_FAST_EMBED", "0") == "1":
+        logger.info("SENTINEFIN_FAST_EMBED=1 set; using HashedBoWEncoder(%d).", config.hash_dim)
+        return HashedBoWEncoder(config.hash_dim), "hashed-bow"
     try:
         from sentence_transformers import SentenceTransformer
 
@@ -81,7 +85,7 @@ def embed_panel(panel: pd.DataFrame, config: EmbeddingConfig | None = None,
     encoder, backend = load_encoder(cfg)
     texts = panel[NARRATIVE_COL].astype(str).tolist()
     logger.info("Embedding %d narratives with %s ...", len(texts), backend)
-    vectors = encoder.encode(texts, batch_size=cfg.batch_size)
+    vectors = encoder.encode(texts, batch_size=cfg.batch_size, show_progress_bar=True)
     vectors = np.asarray(vectors, dtype=np.float32)
     ensure_dir(processed_dir)
     np.save(processed_dir / "embeddings.npy", vectors)
@@ -124,11 +128,16 @@ def load_embeddings_state(refresh: bool = False, config: EmbeddingConfig | None 
     """
     from .ingest import build_panel, load_raw
 
-    if refresh or not (processed_dir or _cfg.PROCESSED_DATA_DIR).joinpath("embeddings.npy").exists():
-        raw = load_raw()
-        panel = build_panel(raw)
-        vectors = embed_panel(panel, config=config, processed_dir=processed_dir)
+    target_dir = processed_dir or _cfg.PROCESSED_DATA_DIR
+    if refresh or not target_dir.joinpath("embeddings.npy").exists():
+        panel_path = target_dir / "panel.parquet"
+        if panel_path.exists():
+            panel = pd.read_parquet(panel_path)
+        else:
+            raw = load_raw()
+            panel = build_panel(raw)
+        vectors = embed_panel(panel, config=config, processed_dir=target_dir)
         return vectors, panel
-    vectors = np.load(processed_dir / "embeddings.npy")
-    panel = pd.read_parquet(processed_dir / "panel.parquet")
+    vectors = np.load(target_dir / "embeddings.npy")
+    panel = pd.read_parquet(target_dir / "panel.parquet")
     return vectors, panel

@@ -48,6 +48,10 @@ def run_pipeline(
     skip_eda: bool = False,
 ) -> PipelineResult:
     """Run Phases 1-4 end to end and persist every artifact."""
+    import os
+    if smoke:
+        os.environ["SENTINEFIN_SMOKE"] = "1"
+
     from .config import DataConfig
 
     data_cfg = DataConfig()

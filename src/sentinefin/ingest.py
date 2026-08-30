@@ -35,23 +35,62 @@ def download_raw(dest_dir: Path | None = None, url: str = CFPB_URL) -> Path:
     return dest
 
 
-def load_raw(path: Path | None = None, **read_kwargs: object) -> pd.DataFrame:
-    """Load the raw CFPB csv (zip or extracted), or a synthetic fixture."""
+def _normalize_cols(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize raw CSV headers to snake_case (e.g. 'Date received' -> 'date_received')."""
+    df.columns = [str(c).strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
+    return df
+
+
+def load_raw(path: Path | None = None, chunksize: int = 100_000, **read_kwargs: object) -> pd.DataFrame:
+    """Load the raw CFPB csv (zip or extracted), streaming in chunks if large."""
     if path is None:
-        candidates = sorted(_cfg.RAW_DATA_DIR.glob("complaints*.csv*"))
-        if not candidates:
-            raise FileNotFoundError(
-                f"No raw CFPB file under {_cfg.RAW_DATA_DIR}. Run `sentinefin ingest` first."
-            )
-        path = candidates[0]
-    kwargs: dict[str, object] = {"low_memory": False}
-    kwargs.update(read_kwargs)
+        small_candidate = _cfg.RAW_DATA_DIR / "complaints_small.csv"
+        if small_candidate.exists():
+            path = small_candidate
+            logger.info("Auto-selected small dataset: %s", path)
+        else:
+            candidates = sorted(_cfg.RAW_DATA_DIR.glob("complaints*.csv*"))
+            if not candidates:
+                raise FileNotFoundError(
+                    f"No raw CFPB file under {_cfg.RAW_DATA_DIR}. Run `sentinefin ingest` first."
+                )
+            path = candidates[0]
+    
+    if path.stat().st_size < 50_000_000:
+        kwargs: dict[str, object] = {"low_memory": False}
+        kwargs.update(read_kwargs)
+        if str(path).endswith(".zip"):
+            with zipfile.ZipFile(path) as zf:
+                name = next(n for n in zf.namelist() if n.endswith(".csv"))
+                df = pd.read_csv(zf.open(name), **kwargs)
+        else:
+            df = pd.read_csv(path, **kwargs)
+        return _normalize_cols(df)
+
+    logger.info("Loading large raw file %s in chunks of %d ...", path, chunksize)
+    chunks = []
+    total_raw = 0
+    total_kept = 0
+    
     if str(path).endswith(".zip"):
-        with zipfile.ZipFile(path) as zf:
-            name = next(n for n in zf.namelist() if n.endswith(".csv"))
-            df = pd.read_csv(zf.open(name), **kwargs)
+        zf = zipfile.ZipFile(path)
+        name = next(n for n in zf.namelist() if n.endswith(".csv"))
+        src = zf.open(name)
     else:
-        df = pd.read_csv(path, **kwargs)
+        src = str(path)
+
+    for chunk in pd.read_csv(src, chunksize=chunksize, low_memory=False, **read_kwargs):
+        total_raw += len(chunk)
+        chunk = _normalize_cols(chunk)
+        if NARRATIVE_COL in chunk.columns:
+            has_narrative = chunk[NARRATIVE_COL].notna() & (chunk[NARRATIVE_COL].astype(str).str.strip() != "")
+            chunk = chunk[has_narrative]
+        total_kept += len(chunk)
+        chunks.append(chunk)
+
+    df = pd.concat(chunks, ignore_index=True)
+    logger.info("Streamed %d raw rows -> kept %d rows with narratives (%.2f%%)",
+                total_raw, total_kept, 100.0 * total_kept / max(1, total_raw))
     return df
 
 
@@ -63,7 +102,7 @@ def filter_with_narratives(df: pd.DataFrame, min_words: int) -> pd.DataFrame:
     pct = 100.0 * has_narrative.mean()
     logger.info("%.2f%% of %d complaints carry a narrative", pct, total)
     out.attrs["narrative_rate"] = pct
-    out["narrative_word_count"] = out[NARRATIVE_COL].astype(str).str.split().str.len()
+    out["narrative_word_count"] = out[NARRATIVE_COL].astype(str).str.count(r'\S+')
     before = len(out)
     out = out[out["narrative_word_count"] >= min_words]
     dropped = before - len(out)
@@ -181,3 +220,127 @@ def summarize_panel(panel: pd.DataFrame) -> dict:
         if len(panel)
         else 0.0,
     }
+
+
+def sample_raw_dataset(
+    input_path: Path | str | None = None,
+    output_path: Path | str | None = None,
+    target_size: int = 20_000,
+    min_words: int = 10,
+    seed: int = 42,
+    chunk_size: int = 50_000,
+    max_scan_chunks: int = 350,
+    chunk_step: int = 10,
+) -> Path:
+    """Stream raw CFPB CSV and create a balanced, stratified small sample.
+
+    Extracts complaints with substantial narratives, distributed across monthly
+    windows and product categories to enable training on low-compute infrastructure.
+    """
+    import numpy as np
+
+    if input_path is None:
+        candidates = sorted(_cfg.RAW_DATA_DIR.glob("complaints*.csv*"))
+        candidates = [c for c in candidates if "small" not in c.name and "smoke" not in c.name and "fixture" not in c.name]
+        if not candidates:
+            raise FileNotFoundError(f"No source complaints CSV found under {_cfg.RAW_DATA_DIR}")
+        input_path = candidates[0]
+
+    input_path = Path(input_path)
+    output_path = Path(output_path) if output_path else _cfg.RAW_DATA_DIR / "complaints_small.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    rng = np.random.default_rng(seed)
+    logger.info("Sampling %d complaints from %s -> %s", target_size, input_path, output_path)
+
+    extracted_chunks = []
+    total_narratives = 0
+    candidate_target = max(target_size * 3, 60_000)
+
+    reader = pd.read_csv(input_path, chunksize=chunk_size, low_memory=False, dtype=str)
+
+    for chunk_idx, chunk in enumerate(reader):
+        if chunk_idx >= max_scan_chunks:
+            break
+        if chunk_idx % chunk_step != 0:
+            continue
+
+        narr_col = None
+        for col in chunk.columns:
+            if col.strip().lower().replace(" ", "_").replace("-", "_") == NARRATIVE_COL:
+                narr_col = col
+                break
+
+        if narr_col is None:
+            continue
+
+        has_narrative = (
+            chunk[narr_col].notna()
+            & (chunk[narr_col].astype(str).str.strip() != "")
+            & (chunk[narr_col].astype(str).str.strip().str.lower() != "nan")
+        )
+        subset = chunk.loc[has_narrative].copy()
+        if len(subset) == 0:
+            continue
+
+        word_counts = subset[narr_col].astype(str).str.count(r"\S+")
+        subset = subset.loc[word_counts >= min_words]
+
+        if len(subset) > 0:
+            extracted_chunks.append(subset)
+            total_narratives += len(subset)
+
+        if total_narratives >= candidate_target:
+            break
+
+    if not extracted_chunks:
+        raise ValueError(f"No valid complaint narratives found in {input_path}")
+
+    candidates_df = pd.concat(extracted_chunks, ignore_index=True)
+    date_col = next(
+        (c for c in candidates_df.columns if "date" in c.lower() and "received" in c.lower()),
+        "Date received",
+    )
+    product_col = next(
+        (c for c in candidates_df.columns if c.strip().lower() == "product"),
+        "Product",
+    )
+
+    candidates_df["_dt"] = pd.to_datetime(candidates_df[date_col], errors="coerce")
+    candidates_df = candidates_df.dropna(subset=["_dt"]).copy()
+    candidates_df["_period"] = candidates_df["_dt"].dt.to_period("M").astype(str)
+    candidates_df["_prod"] = candidates_df[product_col].fillna("Unknown").astype(str).str.strip()
+
+    total_available = len(candidates_df)
+    if total_available <= target_size:
+        final_sample = candidates_df
+    else:
+        groups = candidates_df.groupby(["_period", "_prod"])
+        base_per_group = max(1, target_size // max(1, len(groups)))
+        sample_indices = []
+        for _, grp in groups:
+            n_select = min(len(grp), max(base_per_group, int(len(grp) * (target_size / total_available))))
+            chosen = rng.choice(grp.index, size=n_select, replace=False)
+            sample_indices.extend(chosen)
+
+        sample_indices = list(set(sample_indices))
+        if len(sample_indices) > target_size:
+            sample_indices = rng.choice(sample_indices, size=target_size, replace=False).tolist()
+        elif len(sample_indices) < target_size:
+            remaining = list(set(candidates_df.index) - set(sample_indices))
+            needed = target_size - len(sample_indices)
+            additional = rng.choice(remaining, size=min(needed, len(remaining)), replace=False).tolist()
+            sample_indices.extend(additional)
+
+        final_sample = candidates_df.loc[sample_indices].copy()
+
+    final_sample = final_sample.drop(columns=["_dt", "_period", "_prod"])
+    if date_col in final_sample.columns:
+        final_sample["_dt_sort"] = pd.to_datetime(final_sample[date_col], errors="coerce")
+        final_sample = final_sample.sort_values("_dt_sort").drop(columns=["_dt_sort"])
+
+    final_sample.to_csv(output_path, index=False)
+    logger.info("Saved %d sampled complaints (%.2f MB) to %s",
+                len(final_sample), output_path.stat().st_size / (1024 * 1024), output_path)
+    return output_path
+

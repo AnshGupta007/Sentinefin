@@ -30,6 +30,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-v", "--verbose", action="store_true")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    p_sample = sub.add_parser("sample", help="Create a small, balanced dataset from complaints.csv")
+    p_sample.add_argument("--raw", type=Path, default=None, help="raw source csv/zip path")
+    p_sample.add_argument("--output", "-o", type=Path, default=None, help="output small csv path")
+    p_sample.add_argument("--size", "-n", type=int, default=20_000, help="target sample size (default 20000)")
+    p_sample.add_argument("--min-words", type=int, default=10, help="minimum narrative words (default 10)")
+    p_sample.add_argument("--seed", type=int, default=42, help="random seed (default 42)")
+
     p_ingest = sub.add_parser("ingest", help="Phase 1: build the complaint panel and EDA")
     p_ingest.add_argument("--raw", type=Path, default=None, help="raw csv/zip path override")
 
@@ -50,6 +57,19 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     _setup_logging(args.verbose)
+
+    if args.command == "sample":
+        from .ingest import sample_raw_dataset
+
+        out = sample_raw_dataset(
+            input_path=args.raw,
+            output_path=args.output,
+            target_size=args.size,
+            min_words=args.min_words,
+            seed=args.seed,
+        )
+        print(f"Sampled dataset created at: {out}")
+        return 0
 
     if args.command == "ingest":
         from .config import DataConfig
