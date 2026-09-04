@@ -52,14 +52,34 @@ SENTINEFIN_SMOKE=1 sentinefin pipeline
   runs the smoke pipeline and uploads artifacts (metrics JSON, report HTML);
   set `run_full: true` in the dispatch input to run against the real CFPB data.
 
+## Interactive Clustering Dashboard (React + ECharts)
+
+A modern, hardware-accelerated 2D/3D latent manifold dashboard built with React 18, TypeScript, Tailwind CSS, and Apache ECharts.
+
+```bash
+# 1. Export the latest SentinelFin embeddings & DEC clusters to the dashboard
+source .venv_linux/bin/activate
+python scripts/export_frontend_data.py
+
+# 2. Launch the frontend development server
+cd frontend
+npm install
+npm run dev
+# Dashboard is live at http://localhost:3000
+```
+
+- **Features**: Interactive UMAP/PCA coordinate toggling, Student-$t$ DEC cluster visibility filtering, point-by-point narrative inspection drawer, and live keyword filtering.
+
 ## Layout
 
 ```
 src/sentinefin/     pipeline package (one module per phase)
+frontend/           React 18 + TypeScript + ECharts interactive cluster studio
+scripts/            dataset sampling and frontend export scripts
 tests/              pytest suite incl. end-to-end smoke test
 data/raw|processed  regenerable datasets (gitignored)
 outputs/            metrics, plots, ranked emergent clusters
-reports/            pre-registered backtest cases + HTML report
+reports/            pre-registered backtest cases + static HTML report
 docs/               master prompt, PRD, and model accuracy metrics
 ```
 
