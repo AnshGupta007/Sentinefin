@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, Layers, Database, ShieldAlert, TrendingUp } from "lucide-react";
+import { Activity, Layers, Database, ShieldAlert, TrendingUp, AlertTriangle } from "lucide-react";
 import { ClusterMetrics } from "../types/cluster";
 
 interface MetricCardsProps {
@@ -11,6 +11,11 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   metrics,
   visibleClustersCount,
 }) => {
+  const isSilhouetteHigh = metrics.silhouette_score >= 0.5;
+  const isSilhouettePositive = metrics.silhouette_score > 0;
+  const isDaviesOptimal = metrics.davies_bouldin_index <= 0.6;
+  const isDaviesAcceptable = metrics.davies_bouldin_index <= 1.2;
+
   return (
     <section className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 py-4 bg-[#0a0e17] border-b border-gray-800/80">
       {/* 1. Silhouette Coefficient */}
@@ -20,11 +25,27 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
             <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
               Silhouette Score
             </p>
-            <h3 className="text-2xl font-extrabold font-mono text-emerald-400 mt-1">
-              {metrics.silhouette_score.toFixed(3)}
+            <h3 className={`text-2xl font-extrabold font-mono mt-1 ${
+              isSilhouetteHigh ? "text-emerald-400" : isSilhouettePositive ? "text-amber-400" : "text-rose-400"
+            }`}>
+              {metrics.silhouette_score >= 0 ? "+" : ""}{metrics.silhouette_score.toFixed(3)}
             </h3>
-            <span className="text-[10px] text-emerald-400/90 font-medium flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3 h-3" /> High Boundary Separation (&gt;0.70)
+            <span className={`text-[10px] font-medium flex items-center gap-1 mt-1 ${
+              isSilhouetteHigh ? "text-emerald-400/90" : isSilhouettePositive ? "text-amber-400/90" : "text-rose-400/90"
+            }`}>
+              {isSilhouetteHigh ? (
+                <>
+                  <TrendingUp className="w-3 h-3" /> High Boundary Separation (&gt;0.70)
+                </>
+              ) : isSilhouettePositive ? (
+                <>
+                  <Activity className="w-3 h-3" /> Moderate Cluster Cohesion
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-3 h-3" /> Overlapping Cluster Boundaries
+                </>
+              )}
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-950/40 border border-emerald-800/50 flex items-center justify-center text-emerald-400 shadow-inner">
@@ -40,11 +61,15 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
             <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
               Davies-Bouldin Index
             </p>
-            <h3 className="text-2xl font-extrabold font-mono text-blue-400 mt-1">
+            <h3 className={`text-2xl font-extrabold font-mono mt-1 ${
+              isDaviesOptimal ? "text-blue-400" : isDaviesAcceptable ? "text-indigo-400" : "text-amber-400"
+            }`}>
               {metrics.davies_bouldin_index.toFixed(3)}
             </h3>
-            <span className="text-[10px] text-blue-300/80 font-medium mt-1 block">
-              Optimal Cluster Dispersion (&lt;0.60)
+            <span className={`text-[10px] font-medium mt-1 block ${
+              isDaviesOptimal ? "text-blue-300/90" : isDaviesAcceptable ? "text-indigo-300/90" : "text-amber-300/90"
+            }`}>
+              {isDaviesOptimal ? "Optimal Cluster Dispersion (<0.60)" : isDaviesAcceptable ? "Acceptable Compactness (<1.20)" : "High Variance Dispersion"}
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-blue-950/40 border border-blue-800/50 flex items-center justify-center text-blue-400 shadow-inner">
@@ -58,13 +83,13 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-              DEC Emergent Clusters
+              Active Partitions
             </p>
             <h3 className="text-2xl font-extrabold font-mono text-indigo-300 mt-1">
-              {metrics.total_clusters}
+              {visibleClustersCount} <span className="text-xs text-gray-400 font-normal">/ {metrics.total_clusters}</span>
             </h3>
             <span className="text-[10px] text-indigo-400/90 font-medium mt-1 block">
-              {visibleClustersCount} / {metrics.total_clusters} Visible in Projection
+              {((visibleClustersCount / Math.max(1, metrics.total_clusters)) * 100).toFixed(0)}% Visible in Projection
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-indigo-950/40 border border-indigo-800/50 flex items-center justify-center text-indigo-400 shadow-inner">

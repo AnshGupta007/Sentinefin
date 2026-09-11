@@ -1,0 +1,10 @@
+{
+  "name": "sentinefin-workspace",
+  "private": true,
+  "description": "Root workspace proxy for SentinelFin clustering frontend",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  }
+}

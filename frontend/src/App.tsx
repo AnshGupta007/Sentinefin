@@ -8,6 +8,8 @@ import { ClusterScatterPlot } from "./components/ClusterScatterPlot";
 import { DataTableStrip } from "./components/DataTableStrip";
 import { PointInspectorDrawer } from "./components/PointInspectorDrawer";
 import { ClusterDistributionModal } from "./components/ClusterDistributionModal";
+import { LiveFraudSimulatorModal } from "./components/LiveFraudSimulatorModal";
+import { NoveltyInferenceResult } from "./utils/clusterInference";
 import { Loader2 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -19,13 +21,15 @@ export const App: React.FC = () => {
   const [pointSize, setPointSize] = useState<number>(6);
   const [pointOpacity, setPointOpacity] = useState<number>(0.8);
   const [selectedPoint, setSelectedPoint] = useState<ClusterPoint | null>(null);
+  const [brushedPointIds, setBrushedPointIds] = useState<string[] | null>(null);
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState<boolean>(false);
+  const [isFraudModalOpen, setIsFraudModalOpen] = useState<boolean>(false);
 
   // Fetch real exported clustering JSON from /data/clustering_data.json, or fallback to mock
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/data/clustering_data.json");
+        const res = await fetch("/data/clustering_data.json?t=" + Date.now());
         if (res.ok) {
           const json: ClusteringDataset = await res.json();
           setDataset(json);
@@ -49,37 +53,93 @@ export const App: React.FC = () => {
     fetchData();
   }, []);
 
-  // Filter Points based on Visible Clusters and Search Query
+  const selectedClusterSet = useMemo(() => new Set(selectedClusters), [selectedClusters]);
+  const brushedPointSet = useMemo(() => brushedPointIds !== null ? new Set(brushedPointIds) : null, [brushedPointIds]);
+
+  // Filter Points based on Visible Clusters, Search Query, and Lasso Brush Selection
   const filteredPoints = useMemo(() => {
     if (!dataset) return [];
-    return dataset.points.filter((pt) => {
-      const isVisible = selectedClusters.includes(pt.cluster_id);
-      if (!isVisible) return false;
+    const q = searchQuery.trim().toLowerCase();
 
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
+    return dataset.points.filter((pt) => {
+      // 1. Cluster visibility filter (O(1) Set check)
+      if (!selectedClusterSet.has(pt.cluster_id)) return false;
+
+      // 2. Lasso Brush filter (O(1) Set check if active)
+      if (brushedPointSet !== null && !brushedPointSet.has(pt.id)) {
+        return false;
+      }
+
+      // 3. Search query filter
+      if (!q) return true;
       const inTitle = pt.metadata.title?.toLowerCase().includes(q);
       const inSnippet = pt.metadata.snippet?.toLowerCase().includes(q);
-      const inCompany = pt.metadata.company?.toLowerCase().includes(q);
       const inIssue = pt.metadata.issue?.toLowerCase().includes(q);
-      return inTitle || inSnippet || inCompany || inIssue;
+      const inSubIssue = pt.metadata.sub_issue?.toLowerCase().includes(q);
+      return inTitle || inSnippet || inIssue || inSubIssue;
     });
-  }, [dataset, selectedClusters, searchQuery]);
+  }, [dataset, selectedClusterSet, searchQuery, brushedPointSet]);
 
-  // Cluster Selection Toggles
-  const handleToggleCluster = (id: number) => {
+  // Cluster Selection Toggles (useCallback prevents child re-renders)
+  const handleToggleCluster = React.useCallback((id: number) => {
     setSelectedClusters((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = React.useCallback(() => {
     if (dataset) setSelectedClusters(dataset.clusters.map((c) => c.id));
-  };
+  }, [dataset]);
 
-  const handleDeselectAll = () => {
+  const handleDeselectAll = React.useCallback(() => {
     setSelectedClusters([]);
-  };
+  }, []);
+
+  const handleBrushSelect = React.useCallback((ids: string[]) => {
+    setBrushedPointIds(ids.length > 0 ? ids : null);
+  }, []);
+
+  const handleClearBrush = React.useCallback(() => {
+    setBrushedPointIds(null);
+  }, []);
+
+  // Handle ingestion of a new live complaint point from the simulator
+  const handleIngestPoint = React.useCallback((result: NoveltyInferenceResult) => {
+    setDataset((prev) => {
+      if (!prev) return prev;
+
+      const updatedPoints = [result.newPoint, ...prev.points];
+      let updatedClusters = [...prev.clusters];
+
+      if (result.createdCluster) {
+        updatedClusters = [...updatedClusters, result.createdCluster];
+      } else {
+        // Increment count of the matched cluster
+        updatedClusters = updatedClusters.map((c) =>
+          c.id === result.assignedClusterId ? { ...c, count: c.count + 1 } : c
+        );
+      }
+
+      return {
+        ...prev,
+        clusters: updatedClusters,
+        points: updatedPoints,
+        metrics: {
+          ...prev.metrics,
+          total_points: prev.metrics.total_points + 1,
+          total_clusters: updatedClusters.length,
+        },
+      };
+    });
+
+    // Make sure the new cluster is visible
+    setSelectedClusters((prev) =>
+      prev.includes(result.assignedClusterId) ? prev : [...prev, result.assignedClusterId]
+    );
+
+    // Immediately focus on the new point in the inspector drawer
+    setSelectedPoint(result.newPoint);
+  }, []);
 
   if (loading || !dataset) {
     return (
@@ -97,8 +157,12 @@ export const App: React.FC = () => {
         datasetName={dataset.dataset_name}
         modelArchitecture={dataset.model_architecture}
         projection={projection}
-        onProjectionChange={setProjection}
+        onProjectionChange={(p) => {
+          setProjection(p);
+          setBrushedPointIds(null);
+        }}
         onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
+        onOpenFraudSimulator={() => setIsFraudModalOpen(true)}
         activePointsCount={filteredPoints.length}
       />
 
@@ -137,6 +201,7 @@ export const App: React.FC = () => {
             pointOpacity={pointOpacity}
             selectedPoint={selectedPoint}
             onPointSelect={setSelectedPoint}
+            onBrushSelect={handleBrushSelect}
           />
 
           {/* Bottom Data Table Strip */}
@@ -146,6 +211,8 @@ export const App: React.FC = () => {
             selectedPoint={selectedPoint}
             onPointSelect={setSelectedPoint}
             projection={projection}
+            isBrushed={brushedPointIds !== null}
+            onClearBrush={handleClearBrush}
           />
         </main>
 
@@ -163,6 +230,15 @@ export const App: React.FC = () => {
         isOpen={isDistributionModalOpen}
         onClose={() => setIsDistributionModalOpen(false)}
         clusters={dataset.clusters}
+      />
+
+      {/* Live Fraud Ingestion & Online Cluster Spawner Modal */}
+      <LiveFraudSimulatorModal
+        isOpen={isFraudModalOpen}
+        onClose={() => setIsFraudModalOpen(false)}
+        existingClusters={dataset.clusters}
+        existingPoints={dataset.points}
+        onIngestPoint={handleIngestPoint}
       />
     </div>
   );

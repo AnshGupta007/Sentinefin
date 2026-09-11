@@ -3,8 +3,11 @@ export type ProjectionType = "UMAP" | "PCA" | "t-SNE";
 export interface ClusterPointMetadata {
   title: string;
   issue?: string;
+  sub_issue?: string;
   company?: string;
   snippet: string;
+  full_snippet?: string;
+  word_count?: number;
   timestamp?: string;
   [key: string]: any;
 }
@@ -15,6 +18,8 @@ export interface ClusterPoint {
   y: number;
   pca_x?: number;
   pca_y?: number;
+  tsne_x?: number;
+  tsne_y?: number;
   cluster_id: number;
   confidence: number;
   window_id?: string;

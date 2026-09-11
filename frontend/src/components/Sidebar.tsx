@@ -1,5 +1,5 @@
-import React from "react";
-import { Search, Eye, EyeOff, Sliders, Sparkles } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Search, Eye, EyeOff, Sliders, Sparkles, X, CheckSquare, Square } from "lucide-react";
 import { ClusterMeta } from "../types/cluster";
 
 interface SidebarProps {
@@ -16,7 +16,7 @@ interface SidebarProps {
   onPointOpacityChange: (o: number) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const Sidebar: React.FC<SidebarProps> = React.memo(({
   clusters,
   selectedClusters,
   onToggleCluster,
@@ -29,51 +29,96 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pointOpacity,
   onPointOpacityChange,
 }) => {
+  const [clusterFilter, setClusterFilter] = useState<string>("");
+
+  const selectedSet = useMemo(() => new Set(selectedClusters), [selectedClusters]);
+
+  const visibleClusterItems = useMemo(() => {
+    if (!clusterFilter) return clusters;
+    const q = clusterFilter.toLowerCase();
+    return clusters.filter(
+      (c) =>
+        c.label.toLowerCase().includes(q) ||
+        c.keywords?.some((k) => k.toLowerCase().includes(q))
+    );
+  }, [clusters, clusterFilter]);
+
   return (
-    <aside className="w-80 border-r border-gray-800 bg-[#0e1424] flex flex-col p-4 space-y-4 overflow-y-auto">
-      {/* 1. SEARCH BOX */}
+    <aside className="w-80 border-r border-gray-800 bg-[#0e1424] flex flex-col p-4 space-y-4 overflow-hidden h-full">
+      {/* 1. TEXT SEARCH BOX WITH CLEAR BUTTON */}
       <div>
         <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5 font-mono">
-          Filter Complaint Semantics
+          Search Narratives
         </label>
         <div className="relative">
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search keywords (e.g., dispute, fee)..."
+            placeholder="Search keywords (e.g. dispute, fee)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full bg-gray-900/90 border border-gray-700/80 rounded-lg pl-9 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+            className="w-full bg-gray-900/90 border border-gray-700/80 rounded-lg pl-9 pr-8 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
           />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange("")}
+              className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-200"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 2. CLUSTER VISIBILITY CONTROLS */}
+      {/* 2. CLUSTER VISIBILITY CONTROLS & FILTER */}
       <div className="space-y-2 flex-1 flex flex-col min-h-0">
         <div className="flex items-center justify-between">
           <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-mono">
-            Emergent Clusters ({clusters.length})
+            Partitions ({clusters.length})
           </label>
           <div className="space-x-1.5 text-[11px] font-medium">
             <button
               onClick={onSelectAll}
-              className="text-blue-400 hover:text-blue-300 transition-colors"
+              className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1"
             >
-              Select All
+              <CheckSquare className="w-3 h-3" /> All
             </button>
             <span className="text-gray-600">|</span>
             <button
               onClick={onDeselectAll}
-              className="text-gray-400 hover:text-gray-300 transition-colors"
+              className="text-gray-400 hover:text-gray-300 transition-colors inline-flex items-center gap-1"
             >
-              Clear
+              <Square className="w-3 h-3" /> None
             </button>
           </div>
         </div>
 
-        <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 max-h-72">
-          {clusters.map((c) => {
-            const isSelected = selectedClusters.includes(c.id);
+        {/* Quick Cluster Filter Input if > 6 clusters */}
+        {clusters.length > 6 && (
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Filter cluster names..."
+              value={clusterFilter}
+              onChange={(e) => setClusterFilter(e.target.value)}
+              className="w-full bg-gray-950/70 border border-gray-800 rounded-md px-2.5 py-1 text-[11px] text-gray-300 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+            />
+            {clusterFilter && (
+              <button
+                onClick={() => setClusterFilter("")}
+                className="absolute right-2 top-1.5 text-gray-500 hover:text-gray-300"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Dynamic Scrollable Cluster List (fills available space) */}
+        <div className="space-y-1.5 overflow-y-auto pr-1 flex-1">
+          {visibleClusterItems.map((c) => {
+            const isSelected = selectedSet.has(c.id);
             return (
               <div
                 key={c.id}
@@ -116,9 +161,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* 3. VISUAL TUNING SLIDERS */}
-      <div className="pt-3 border-t border-gray-800 space-y-3">
+      <div className="pt-3 border-t border-gray-800 space-y-2.5 flex-shrink-0">
         <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
-          <Sliders className="w-3.5 h-3.5 text-indigo-400" /> Canvas Visual Tuning
+          <Sliders className="w-3.5 h-3.5 text-indigo-400" /> Rendering Controls
         </label>
 
         <div>
@@ -154,12 +199,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* 4. ACADEMIC HIGHLIGHT TIP */}
-      <div className="p-3 bg-blue-950/30 border border-blue-800/40 rounded-xl text-[11px] text-blue-300/90 leading-relaxed">
+      <div className="p-3 bg-blue-950/30 border border-blue-800/40 rounded-xl text-[11px] text-blue-300/90 leading-relaxed flex-shrink-0">
         <div className="font-semibold flex items-center gap-1 text-blue-200 mb-1">
           <Sparkles className="w-3 h-3 text-cyan-400" /> Self-Supervised DEC
         </div>
-        Student-$t$ distribution kernel ($\alpha=1$) ensures dense manifolds remain separable without overlapping centroid collapse.
+        Student-t distribution kernel (α = 1) ensures dense manifolds remain separable without overlapping centroid collapse.
       </div>
     </aside>
   );
-};
+});
+

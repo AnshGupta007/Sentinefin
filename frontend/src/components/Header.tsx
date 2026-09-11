@@ -1,5 +1,5 @@
 import React from "react";
-import { Layers, Download, BarChart2, Sparkles } from "lucide-react";
+import { Layers, Download, BarChart2, Sparkles, Zap } from "lucide-react";
 import { ProjectionType } from "../types/cluster";
 
 interface HeaderProps {
@@ -8,6 +8,7 @@ interface HeaderProps {
   projection: ProjectionType;
   onProjectionChange: (p: ProjectionType) => void;
   onOpenDistributionModal: () => void;
+  onOpenFraudSimulator: () => void;
   activePointsCount: number;
 }
 
@@ -17,10 +18,11 @@ export const Header: React.FC<HeaderProps> = ({
   projection,
   onProjectionChange,
   onOpenDistributionModal,
+  onOpenFraudSimulator,
   activePointsCount,
 }) => {
   return (
-    <header className="h-16 border-b border-gray-800 bg-[#0e1424]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 shadow-md shadow-black/20">
+    <header className="h-16 border-b border-gray-800 bg-[#0e1424]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 shadow-md shadow-black/20 flex-shrink-0">
       {/* Brand & Dataset Indicator */}
       <div className="flex items-center space-x-3.5">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/25 ring-1 ring-white/20">
@@ -45,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Projection Controls, Distribution Analytics & Export */}
+      {/* Projection Controls, Live Fraud Simulator, Analytics & Export */}
       <div className="flex items-center space-x-3">
         {/* Projection Mode Switcher */}
         <div className="flex items-center bg-gray-900/90 p-1 rounded-lg border border-gray-700/80 shadow-inner">
@@ -64,6 +66,16 @@ export const Header: React.FC<HeaderProps> = ({
           ))}
         </div>
 
+        {/* Live Fraud Simulator Trigger Button */}
+        <button
+          onClick={onOpenFraudSimulator}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white transition-all shadow-md shadow-cyan-600/25 ring-1 ring-cyan-400/30"
+          title="Simulate Real-time Fraud Reporting & Novel Cluster Discovery"
+        >
+          <Zap className="w-3.5 h-3.5 text-cyan-200" />
+          <span>Live Fraud Test</span>
+        </button>
+
         {/* Analytics Distribution Modal Toggle */}
         <button
           onClick={onOpenDistributionModal}
@@ -77,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Print / Export Brief */}
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-sm shadow-blue-500/20"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors shadow-sm"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Export View</span>
