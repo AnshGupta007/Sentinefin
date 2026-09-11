@@ -83,5 +83,8 @@ reports/            pre-registered backtest cases + static HTML report
 docs/               master prompt, PRD, and model accuracy metrics
 ```
 
-- See [`docs/MODEL_PERFORMANCE_METRICS.md`](docs/MODEL_PERFORMANCE_METRICS.md) for full accuracy benchmarks (90.8% test accuracy), loss curves, and architecture details.
-- See `docs/SentinelFin_Master_Prompt.md` for the phase roadmap and acceptance criteria.
+- **Model 1 Results**: [`docs/MODEL_1_SUPERVISED_MLP_RESULTS.md`](docs/MODEL_1_SUPERVISED_MLP_RESULTS.md) — Supervised Deep Neural Representation Classifier (90.8% accuracy, 0.856 Macro-F1).
+- **Model 2 Results**: [`docs/MODEL_2_DEC_CLUSTERING_RESULTS.md`](docs/MODEL_2_DEC_CLUSTERING_RESULTS.md) — Unsupervised Deep Embedded Clustering (`DEC` Autoencoder: 0.0010 MSE loss, +0.742 Silhouette score).
+- **Model Comparison**: [`docs/MODEL_COMPARISON.md`](docs/MODEL_COMPARISON.md) — Comprehensive side-by-side evaluation, theoretical objective contrast, zero-day fraud analysis, and oral defense guide.
+- **Master Metrics**: [`docs/MODEL_PERFORMANCE_METRICS.md`](docs/MODEL_PERFORMANCE_METRICS.md) — Complete benchmark records across all 5 neural pipeline phases.
+- **Master Prompt**: `docs/SentinelFin_Master_Prompt.md` for the phase roadmap and acceptance criteria.
