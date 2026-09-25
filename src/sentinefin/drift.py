@@ -79,7 +79,9 @@ def train_lstm_ae(
             opt.step()
             total += float(loss.item())
         if (epoch + 1) % max(1, cfg.epochs // 5) == 0:
-            logger.info("LSTM-AE epoch %d/%d loss %.5f", epoch + 1, cfg.epochs, total / len(sequences))
+            logger.info(
+                "LSTM-AE epoch %d/%d loss %.5f", epoch + 1, cfg.epochs, total / len(sequences)
+            )
     return model
 
 
@@ -87,7 +89,7 @@ def pad_or_trim(seq: np.ndarray, min_len: int = 3, max_len: int = 24) -> np.ndar
     """Pad too-short trajectories by repeating their first step; cap length."""
     if len(seq) < min_len:
         reps = int(np.ceil(min_len / len(seq)))
-        seq = np.tile(seq[:1], (reps, 1))[:max(min_len, len(seq))]
+        seq = np.tile(seq[:1], (reps, 1))[: max(min_len, len(seq))]
     if len(seq) > max_len:
         seq = seq[-max_len:]
     return seq
@@ -126,7 +128,10 @@ def flag_alerts(scores: dict, threshold: float) -> list[dict]:
                     "trajectory_index": i,
                     "error": err,
                     "per_feature": {
-                        name: err_f for name, err_f in zip(FEATURE_NAMES, scores["per_feature"][i], strict=False)
+                        name: err_f
+                        for name, err_f in zip(
+                            FEATURE_NAMES, scores["per_feature"][i], strict=False
+                        )
                     },
                 }
             )

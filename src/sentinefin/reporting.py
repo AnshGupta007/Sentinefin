@@ -56,7 +56,10 @@ def optional_llm_label(texts: list[str]) -> str | None:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Summarize the common complaint pattern in one short line."},
+                {
+                    "role": "system",
+                    "content": "Summarize the common complaint pattern in one short line.",
+                },
                 {"role": "user", "content": sample},
             ],
             max_tokens=60,
@@ -100,13 +103,17 @@ def build_report(
                 .tolist()
             )
         label = optional_llm_label(narratives)
-        label_text = html.escape(label) if label else ", ".join(
-            html.escape(t) for t in top_terms(narratives)
-        ) or "(no narratives available)"
-        badge = '<span style="color:#b00;font-weight:bold;">ALERT</span>' if item.get("alert") else ""
+        label_text = (
+            html.escape(label)
+            if label
+            else ", ".join(html.escape(t) for t in top_terms(narratives))
+            or "(no narratives available)"
+        )
+        badge = (
+            '<span style="color:#b00;font-weight:bold;">ALERT</span>' if item.get("alert") else ""
+        )
         examples = "".join(
-            f"<li>{html.escape(n[:600] + ('...' if len(n) > 600 else ''))}</li>"
-            for n in narratives
+            f"<li>{html.escape(n[:600] + ('...' if len(n) > 600 else ''))}</li>" for n in narratives
         )
         feats = "".join(
             f"<code>{html.escape(k)}</code>: {v:.4f} &nbsp; "
@@ -114,7 +121,7 @@ def build_report(
         )
         sections.append(f"""
 <h2>Cluster {g} {badge}</h2>
-<p><b>Error:</b> {item['error']:.4f} &nbsp; <b>First seen:</b> {item['first_window']}</p>
+<p><b>Error:</b> {item["error"]:.4f} &nbsp; <b>First seen:</b> {item["first_window"]}</p>
 <p><b>Label:</b> {label_text}</p>
 <p>{feats}</p>
 <ul>{examples}</ul>
@@ -129,7 +136,7 @@ h1{{border-bottom:2px solid #333}} code{{background:#f4f4f4;padding:1px 3px}}</s
 <p>Alert threshold (reconstruction error): {threshold}<br>
 Generated from the most recent pipeline run. Scores are LSTM-AE reconstruction
 errors with interpretable sub-components.</p>
-{''.join(sections) or '<p>No clusters scored yet.</p>'}
+{"".join(sections) or "<p>No clusters scored yet.</p>"}
 </body></html>"""
     ensure_dir(out_dir)
     out = out_dir / "sentinefin_report.html"

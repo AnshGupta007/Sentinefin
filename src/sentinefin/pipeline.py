@@ -49,6 +49,7 @@ def run_pipeline(
 ) -> PipelineResult:
     """Run Phases 1-4 end to end and persist every artifact."""
     import os
+
     if smoke:
         os.environ["SENTINEFIN_SMOKE"] = "1"
 
@@ -93,8 +94,9 @@ def run_pipeline(
         n_clusters = len(sizes)
         mask = (panel["window_id"] == w).to_numpy()
         vecs_w = vectors[mask]
-        local_assign = assignments.loc[assignments["complaint_id"].isin(
-            panel.loc[mask, "complaint_id"]), "local_cluster"]
+        local_assign = assignments.loc[
+            assignments["complaint_id"].isin(panel.loc[mask, "complaint_id"]), "local_cluster"
+        ]
         cents = np.zeros((n_clusters, vecs_w.shape[1]), dtype=np.float32)
         for c in range(n_clusters):
             sel = vecs_w[(local_assign.to_numpy() == c)]
@@ -111,33 +113,36 @@ def run_pipeline(
     if not bundle.sequences:
         raise RuntimeError("No cluster trajectories built; DEC produced no windows.")
     settled = [
-        s for s, m in zip(bundle.sequences, bundle.meta, strict=False)
+        s
+        for s, m in zip(bundle.sequences, bundle.meta, strict=False)
         if m["length"] >= 3  # trained only on multi-window "settled" trajectories
     ]
     train_seqs = settled or bundle.sequences[: max(1, len(bundle.sequences) // 2)]
     model = train_lstm_ae(train_seqs, cfg=drift_cfg)
     scores = score_trajectories(model, bundle.sequences)
-    threshold = choose_threshold(
-        score_trajectories(model, train_seqs)["overall"], drift_cfg
-    )
+    threshold = choose_threshold(score_trajectories(model, train_seqs)["overall"], drift_cfg)
     alerts = flag_alerts(scores, threshold)
 
     ranked = []
     order = sorted(range(len(scores["overall"])), key=lambda j: -scores["overall"][j])
     for i in order:
-        ranked.append({
-            "rank": len(ranked) + 1,
-            "global_cluster": bundle.meta[i]["global_cluster"],
-            "first_window": bundle.meta[i]["first_window"],
-            "error": scores["overall"][i],
-            "per_feature": {
-                name: round(float(v), 6)
-                for name, v in zip(FEATURE_NAMES, scores["per_feature"][i], strict=False)
-            },
-            "alert": scores["overall"][i] > threshold,
-        })
-    save_json({"threshold": threshold, "ranked_clusters": ranked},
-              _cfg.OUTPUTS_DIR / "emergent_clusters.json")
+        ranked.append(
+            {
+                "rank": len(ranked) + 1,
+                "global_cluster": bundle.meta[i]["global_cluster"],
+                "first_window": bundle.meta[i]["first_window"],
+                "error": scores["overall"][i],
+                "per_feature": {
+                    name: round(float(v), 6)
+                    for name, v in zip(FEATURE_NAMES, scores["per_feature"][i], strict=False)
+                },
+                "alert": scores["overall"][i] > threshold,
+            }
+        )
+    save_json(
+        {"threshold": threshold, "ranked_clusters": ranked},
+        _cfg.OUTPUTS_DIR / "emergent_clusters.json",
+    )
 
     return PipelineResult(
         panel=panel,

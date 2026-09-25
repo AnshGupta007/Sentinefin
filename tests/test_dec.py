@@ -40,8 +40,14 @@ def test_pretrain_reduces_reconstruction_loss():
 
 
 def test_train_dec_assigns_all_points_and_warm_starts():
-    cfg = DECConfig(n_clusters=4, hidden_dims=(32,), latent_dim=8,
-                    pretrain_epochs=2, finetune_iters=3, update_interval=1)
+    cfg = DECConfig(
+        n_clusters=4,
+        hidden_dims=(32,),
+        latent_dim=8,
+        pretrain_epochs=2,
+        finetune_iters=3,
+        update_interval=1,
+    )
     X = _blob_vectors()
     model, metrics = train_dec(X, cfg, seed=0)
     q = model.soft_assign(model.autoencoder.encoder(torch.tensor(X)))
@@ -50,7 +56,9 @@ def test_train_dec_assigns_all_points_and_warm_starts():
 
     # Warm start from previous state must run without re-initializing.
     state = {
-        "autoencoder": {k: v.detach().cpu().numpy() for k, v in model.autoencoder.state_dict().items()},
+        "autoencoder": {
+            k: v.detach().cpu().numpy() for k, v in model.autoencoder.state_dict().items()
+        },
         "centroids": model.centroids.detach().cpu().numpy(),
     }
     model2, metrics2 = train_dec(X[:80], cfg, init_state=state, seed=0)
@@ -64,7 +72,7 @@ def test_window_tracker_links_stable_clusters():
     base = np.eye(3) * 5.0
     ids1 = tracker.register_window(base)
     ids2 = tracker.register_window(base + 0.01)  # nearly identical centroids
-    ids3 = tracker.register_window(-base)        # unrelated new clusters
+    ids3 = tracker.register_window(-base)  # unrelated new clusters
     assert ids1 == ids2
     assert set(ids3).isdisjoint(set(ids1))
 

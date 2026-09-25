@@ -15,8 +15,8 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
 import xgboost as xgb
+from torch.utils.data import DataLoader, TensorDataset
 
 from .model_evaluator import compute_metrics
 from .utils import set_seed
@@ -82,7 +82,9 @@ class BiLSTMFeatureExtractor(nn.Module):
 def prepare_sequential_tensor(vectors: np.ndarray, seq_len: int = 12) -> torch.Tensor:
     """Reshape flat 384-d vectors into a sequential tensor of shape (N, seq_len, 384 // seq_len)."""
     n, total_dim = vectors.shape
-    assert total_dim % seq_len == 0, f"Cannot divide {total_dim} evenly into {seq_len} sequence steps"
+    assert total_dim % seq_len == 0, (
+        f"Cannot divide {total_dim} evenly into {seq_len} sequence steps"
+    )
     feat_dim = total_dim // seq_len
     reshaped = vectors.reshape(n, seq_len, feat_dim)
     return torch.tensor(reshaped, dtype=torch.float32)
@@ -115,7 +117,6 @@ def train_hybrid_xgb_bilstm(
     y_tr_tensor = torch.tensor(y_train, dtype=torch.long)
 
     X_te_seq = prepare_sequential_tensor(X_test_vecs, seq_len=seq_len)
-    y_te_tensor = torch.tensor(y_test, dtype=torch.long)
 
     train_ds = TensorDataset(X_tr_seq, y_tr_tensor)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
@@ -135,7 +136,7 @@ def train_hybrid_xgb_bilstm(
 
     logger.info("Training BiLSTM feature extractor for %d epochs...", epochs_bilstm)
     bilstm.train()
-    for epoch in range(epochs_bilstm):
+    for _epoch in range(epochs_bilstm):
         total_loss = 0.0
         for batch_x, batch_y in train_loader:
             optimizer.zero_grad()

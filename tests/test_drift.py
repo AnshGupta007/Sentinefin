@@ -36,9 +36,7 @@ def test_lstm_ae_flags_anomalous_trajectory():
     normal = [_normal_traj(rng) for _ in range(12)]
     model = train_lstm_ae(normal, cfg=cfg, seed=0)
 
-    anomalous = np.stack(
-        [np.linspace(0.9, 9.0, 6)] * 3, axis=1
-    ).astype(np.float32)
+    anomalous = np.stack([np.linspace(0.9, 9.0, 6)] * 3, axis=1).astype(np.float32)
 
     scores = score_trajectories(model, normal + [anomalous])
     normal_errs = scores["overall"][:-1]

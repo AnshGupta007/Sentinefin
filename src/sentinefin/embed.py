@@ -59,6 +59,7 @@ class HashedBoWEncoder:
 def load_encoder(config: EmbeddingConfig):
     """Try the pretrained Transformer first; fall back to hashed BoW."""
     import os
+
     if os.environ.get("SENTINEFIN_FAST_EMBED", "0") == "1":
         logger.info("SENTINEFIN_FAST_EMBED=1 set; using HashedBoWEncoder(%d).", config.hash_dim)
         return HashedBoWEncoder(config.hash_dim), "hashed-bow"
@@ -73,8 +74,9 @@ def load_encoder(config: EmbeddingConfig):
         return HashedBoWEncoder(config.hash_dim), "hashed-bow"
 
 
-def embed_panel(panel: pd.DataFrame, config: EmbeddingConfig | None = None,
-                processed_dir: Path | None = None) -> np.ndarray:
+def embed_panel(
+    panel: pd.DataFrame, config: EmbeddingConfig | None = None, processed_dir: Path | None = None
+) -> np.ndarray:
     """Embed all narratives; persist embeddings + id index to disk."""
     cfg = config or EmbeddingConfig()
     processed_dir = processed_dir or _cfg.PROCESSED_DATA_DIR
@@ -84,7 +86,12 @@ def embed_panel(panel: pd.DataFrame, config: EmbeddingConfig | None = None,
     set_seed(cfg.seed)
     encoder, backend = load_encoder(cfg)
     if "issue" in panel.columns and panel["issue"].notna().any():
-        texts = ("Issue: " + panel["issue"].fillna("").astype(str) + ". Narrative: " + panel[NARRATIVE_COL].astype(str)).tolist()
+        texts = (
+            "Issue: "
+            + panel["issue"].fillna("").astype(str)
+            + ". Narrative: "
+            + panel[NARRATIVE_COL].astype(str)
+        ).tolist()
     else:
         texts = panel[NARRATIVE_COL].astype(str).tolist()
     logger.info("Embedding %d narratives with %s ...", len(texts), backend)
@@ -122,8 +129,9 @@ def load_embeddings(processed_dir: Path | None = None) -> tuple[np.ndarray, pd.D
     return vectors, ids
 
 
-def load_embeddings_state(refresh: bool = False, config: EmbeddingConfig | None = None,
-                          processed_dir: Path | None = None):
+def load_embeddings_state(
+    refresh: bool = False, config: EmbeddingConfig | None = None, processed_dir: Path | None = None
+):
     """Return (vectors, panel), embedding fresh and rebuilding the panel if needed.
 
     Used by stage-wise CLI commands so each phase can run independently while

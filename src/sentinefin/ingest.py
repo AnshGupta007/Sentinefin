@@ -41,7 +41,9 @@ def _normalize_cols(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def load_raw(path: Path | None = None, chunksize: int = 100_000, **read_kwargs: object) -> pd.DataFrame:
+def load_raw(
+    path: Path | None = None, chunksize: int = 100_000, **read_kwargs: object
+) -> pd.DataFrame:
     """Load the raw CFPB csv (zip or extracted), streaming in chunks if large."""
     if path is None:
         small_candidate = _cfg.RAW_DATA_DIR / "complaints_small.csv"
@@ -55,7 +57,7 @@ def load_raw(path: Path | None = None, chunksize: int = 100_000, **read_kwargs: 
                     f"No raw CFPB file under {_cfg.RAW_DATA_DIR}. Run `sentinefin ingest` first."
                 )
             path = candidates[0]
-    
+
     if path.stat().st_size < 50_000_000:
         kwargs: dict[str, object] = {"low_memory": False}
         kwargs.update(read_kwargs)
@@ -71,7 +73,7 @@ def load_raw(path: Path | None = None, chunksize: int = 100_000, **read_kwargs: 
     chunks = []
     total_raw = 0
     total_kept = 0
-    
+
     if str(path).endswith(".zip"):
         zf = zipfile.ZipFile(path)
         name = next(n for n in zf.namelist() if n.endswith(".csv"))
@@ -83,14 +85,20 @@ def load_raw(path: Path | None = None, chunksize: int = 100_000, **read_kwargs: 
         total_raw += len(chunk)
         chunk = _normalize_cols(chunk)
         if NARRATIVE_COL in chunk.columns:
-            has_narrative = chunk[NARRATIVE_COL].notna() & (chunk[NARRATIVE_COL].astype(str).str.strip() != "")
+            has_narrative = chunk[NARRATIVE_COL].notna() & (
+                chunk[NARRATIVE_COL].astype(str).str.strip() != ""
+            )
             chunk = chunk[has_narrative]
         total_kept += len(chunk)
         chunks.append(chunk)
 
     df = pd.concat(chunks, ignore_index=True)
-    logger.info("Streamed %d raw rows -> kept %d rows with narratives (%.2f%%)",
-                total_raw, total_kept, 100.0 * total_kept / max(1, total_raw))
+    logger.info(
+        "Streamed %d raw rows -> kept %d rows with narratives (%.2f%%)",
+        total_raw,
+        total_kept,
+        100.0 * total_kept / max(1, total_raw),
+    )
     return df
 
 
@@ -102,7 +110,7 @@ def filter_with_narratives(df: pd.DataFrame, min_words: int) -> pd.DataFrame:
     pct = 100.0 * has_narrative.mean()
     logger.info("%.2f%% of %d complaints carry a narrative", pct, total)
     out.attrs["narrative_rate"] = pct
-    out["narrative_word_count"] = out[NARRATIVE_COL].astype(str).str.count(r'\S+')
+    out["narrative_word_count"] = out[NARRATIVE_COL].astype(str).str.count(r"\S+")
     before = len(out)
     out = out[out["narrative_word_count"] >= min_words]
     dropped = before - len(out)
@@ -202,9 +210,7 @@ def run_eda(panel: pd.DataFrame, outputs_dir: Path | None = None) -> list[Path]:
 
     # Summary tables
     vol.rename("count").to_csv(outputs_dir / "volume_by_window.csv")
-    top_products.rename_axis(PRODUCT_COL).to_frame("count").to_csv(
-        outputs_dir / "top_products.csv"
-    )
+    top_products.rename_axis(PRODUCT_COL).to_frame("count").to_csv(outputs_dir / "top_products.csv")
     return paths
 
 
@@ -241,7 +247,11 @@ def sample_raw_dataset(
 
     if input_path is None:
         candidates = sorted(_cfg.RAW_DATA_DIR.glob("complaints*.csv*"))
-        candidates = [c for c in candidates if "small" not in c.name and "smoke" not in c.name and "fixture" not in c.name]
+        candidates = [
+            c
+            for c in candidates
+            if "small" not in c.name and "smoke" not in c.name and "fixture" not in c.name
+        ]
         if not candidates:
             raise FileNotFoundError(f"No source complaints CSV found under {_cfg.RAW_DATA_DIR}")
         input_path = candidates[0]
@@ -319,7 +329,9 @@ def sample_raw_dataset(
         base_per_group = max(1, target_size // max(1, len(groups)))
         sample_indices = []
         for _, grp in groups:
-            n_select = min(len(grp), max(base_per_group, int(len(grp) * (target_size / total_available))))
+            n_select = min(
+                len(grp), max(base_per_group, int(len(grp) * (target_size / total_available)))
+            )
             chosen = rng.choice(grp.index, size=n_select, replace=False)
             sample_indices.extend(chosen)
 
@@ -329,7 +341,9 @@ def sample_raw_dataset(
         elif len(sample_indices) < target_size:
             remaining = list(set(candidates_df.index) - set(sample_indices))
             needed = target_size - len(sample_indices)
-            additional = rng.choice(remaining, size=min(needed, len(remaining)), replace=False).tolist()
+            additional = rng.choice(
+                remaining, size=min(needed, len(remaining)), replace=False
+            ).tolist()
             sample_indices.extend(additional)
 
         final_sample = candidates_df.loc[sample_indices].copy()
@@ -340,7 +354,10 @@ def sample_raw_dataset(
         final_sample = final_sample.sort_values("_dt_sort").drop(columns=["_dt_sort"])
 
     final_sample.to_csv(output_path, index=False)
-    logger.info("Saved %d sampled complaints (%.2f MB) to %s",
-                len(final_sample), output_path.stat().st_size / (1024 * 1024), output_path)
+    logger.info(
+        "Saved %d sampled complaints (%.2f MB) to %s",
+        len(final_sample),
+        output_path.stat().st_size / (1024 * 1024),
+        output_path,
+    )
     return output_path
-

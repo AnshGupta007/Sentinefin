@@ -12,7 +12,11 @@ from sentinefin.mlp_baseline import train_mlp_baseline
 
 def test_hashed_encoder_is_deterministic_and_normalized():
     enc = HashedBoWEncoder(dim=64)
-    texts = ["credit report dispute error", "mortgage escrow payment", "credit report dispute error"]
+    texts = [
+        "credit report dispute error",
+        "mortgage escrow payment",
+        "credit report dispute error",
+    ]
     out1 = enc.encode(texts)
     out2 = enc.encode(texts)
     assert out1.shape == (3, 64)
@@ -44,10 +48,8 @@ def test_embed_panel_persists_artifacts(isolated_dirs):
     from sentinefin.config import DataConfig
     from sentinefin.ingest import build_panel
 
-    panel = build_panel(df, config=DataConfig(),
-                        processed_dir=cfgmod.PROCESSED_DATA_DIR)
-    vectors = embed_panel(panel, config=EmbeddingConfig(),
-                          processed_dir=cfgmod.PROCESSED_DATA_DIR)
+    panel = build_panel(df, config=DataConfig(), processed_dir=cfgmod.PROCESSED_DATA_DIR)
+    vectors = embed_panel(panel, config=EmbeddingConfig(), processed_dir=cfgmod.PROCESSED_DATA_DIR)
     assert vectors.shape[0] == len(panel)
     assert (cfgmod.PROCESSED_DATA_DIR / "embeddings.npy").exists()
     assert (cfgmod.PROCESSED_DATA_DIR / "embeddings_meta.json").exists()

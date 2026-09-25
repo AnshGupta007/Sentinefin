@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import logging
-import time
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report, f1_score, precision_recall_fscore_support
+from sklearn.metrics import f1_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
@@ -87,7 +86,9 @@ def load_small_dataset_splits(
     if emb_path.exists() and emb_ids_path.exists():
         raw_emb = np.load(emb_path)
         emb_ids = pd.read_parquet(emb_ids_path)
-        id_col = next((c for c in df.columns if "complaint" in c.lower() and "id" in c.lower()), None)
+        id_col = next(
+            (c for c in df.columns if "complaint" in c.lower() and "id" in c.lower()), None
+        )
         if id_col is not None and "complaint_id" in emb_ids.columns:
             id_to_pos = {cid: i for i, cid in enumerate(emb_ids["complaint_id"])}
             mapped_indices = df[id_col].map(id_to_pos).to_numpy()

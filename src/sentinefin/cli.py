@@ -33,8 +33,12 @@ def main(argv: list[str] | None = None) -> int:
     p_sample = sub.add_parser("sample", help="Create a small, balanced dataset from complaints.csv")
     p_sample.add_argument("--raw", type=Path, default=None, help="raw source csv/zip path")
     p_sample.add_argument("--output", "-o", type=Path, default=None, help="output small csv path")
-    p_sample.add_argument("--size", "-n", type=int, default=20_000, help="target sample size (default 20000)")
-    p_sample.add_argument("--min-words", type=int, default=10, help="minimum narrative words (default 10)")
+    p_sample.add_argument(
+        "--size", "-n", type=int, default=20_000, help="target sample size (default 20000)"
+    )
+    p_sample.add_argument(
+        "--min-words", type=int, default=10, help="minimum narrative words (default 10)"
+    )
     p_sample.add_argument("--seed", type=int, default=42, help="random seed (default 42)")
 
     p_ingest = sub.add_parser("ingest", help="Phase 1: build the complaint panel and EDA")
@@ -120,8 +124,12 @@ def main(argv: list[str] | None = None) -> int:
         panel = pd.read_parquet(PROCESSED_DATA_DIR / "panel.parquet")
         assigns = pd.read_parquet(PROCESSED_DATA_DIR / "dec_assignments.parquet")
         vectors = np.load(PROCESSED_DATA_DIR / "embeddings.npy")
-        centroids_by_window, l2g_by_window = _centroids_from_summary(panel, vectors, assigns, summary)
-        bundle = build_trajectories_from_frames(panel, assigns, vectors, centroids_by_window, l2g_by_window)
+        centroids_by_window, l2g_by_window = _centroids_from_summary(
+            panel, vectors, assigns, summary
+        )
+        bundle = build_trajectories_from_frames(
+            panel, assigns, vectors, centroids_by_window, l2g_by_window
+        )
         cfg = DriftConfig()
         model = train_lstm_ae(bundle.sequences, cfg=cfg)
         scores = score_trajectories(model, bundle.sequences)
@@ -130,14 +138,21 @@ def main(argv: list[str] | None = None) -> int:
 
         alerts = flag_alerts(scores, threshold)
         (OUTPUTS_DIR / "emergent_clusters.json").write_text(
-            json.dumps({"threshold": threshold,
-                        "ranked_clusters": [
-                            {"global_cluster": m["global_cluster"],
-                             "first_window": m["first_window"],
-                             "error": e,
-                             "alert": e > threshold}
-                            for m, e in zip(bundle.meta, scores["overall"], strict=False)
-                        ]}, indent=2),
+            json.dumps(
+                {
+                    "threshold": threshold,
+                    "ranked_clusters": [
+                        {
+                            "global_cluster": m["global_cluster"],
+                            "first_window": m["first_window"],
+                            "error": e,
+                            "alert": e > threshold,
+                        }
+                        for m, e in zip(bundle.meta, scores["overall"], strict=False)
+                    ],
+                },
+                indent=2,
+            ),
             encoding="utf-8",
         )
         print(f"{len(alerts)} alerts above threshold {threshold:.4f}")
@@ -148,8 +163,10 @@ def main(argv: list[str] | None = None) -> int:
 
         result = run_pipeline(smoke=args.smoke, skip_eda=args.skip_eda)
         n_alerts = len(result.alerts)
-        print(f"pipeline complete: {len(result.panel)} complaints, "
-              f"{len(result.dec_summary['windows'])} DEC windows, {n_alerts} alerts")
+        print(
+            f"pipeline complete: {len(result.panel)} complaints, "
+            f"{len(result.dec_summary['windows'])} DEC windows, {n_alerts} alerts"
+        )
         return 0
 
     if args.command == "backtest":

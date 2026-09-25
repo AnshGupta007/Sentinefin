@@ -1,7 +1,6 @@
 """Unit tests for teacher-requested models: Hybrid XGBoost + BiLSTM, FinBERT, Proposed CNN-RNN."""
 
 import numpy as np
-import pytest
 import torch
 
 from sentinefin.cnn_rnn import ProposedCNNRNN

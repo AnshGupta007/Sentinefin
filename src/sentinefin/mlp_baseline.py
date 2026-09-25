@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 def canonicalize_product_labels(labels: pd.Series | np.ndarray | list) -> pd.Series:
     """Normalize historical CFPB taxonomy naming variants into canonical products."""
+
     def _clean(val: str) -> str:
         p = str(val).lower()
         if "credit reporting" in p or "credit repair" in p or "consumer reports" in p:
@@ -58,18 +59,21 @@ def canonicalize_product_labels(labels: pd.Series | np.ndarray | list) -> pd.Ser
 
 
 class MLPTagClassifier(nn.Module):
-    def __init__(self, input_dim: int, n_classes: int, hidden_dims: tuple[int, ...],
-                 dropout: float) -> None:
+    def __init__(
+        self, input_dim: int, n_classes: int, hidden_dims: tuple[int, ...], dropout: float
+    ) -> None:
         super().__init__()
         layers: list[nn.Module] = []
         prev = input_dim
         for h in hidden_dims:
-            layers.extend([
-                nn.Linear(prev, h),
-                nn.BatchNorm1d(h),
-                nn.GELU(),
-                nn.Dropout(dropout),
-            ])
+            layers.extend(
+                [
+                    nn.Linear(prev, h),
+                    nn.BatchNorm1d(h),
+                    nn.GELU(),
+                    nn.Dropout(dropout),
+                ]
+            )
             prev = h
         layers.append(nn.Linear(prev, n_classes))
         self.net = nn.Sequential(*layers)

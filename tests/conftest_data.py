@@ -7,16 +7,31 @@ import pandas as pd
 
 TOPICS = [
     # (product, issue, vocabulary) — distinct vocabularies so DEC has signal.
-    ("Credit reporting", "Wrong information on report",
-     "credit report bureau dispute inaccurate score experian equifax section"),
-    ("Debt collection", "Attempts to collect debt not owed",
-     "collector debt owed harassment phone calls validation agency threaten"),
-    ("Mortgage", "Trouble during payment process",
-     "mortgage escrow lender servicer foreclosure payment modification house"),
-    ("Buy Now, Pay Later (BNPL)", "Managing the loan or lease",
-     "bnpl installment installmentpay checkout split purchase refund merchant"),
-    ("Virtual currency", "Crypto asset not delivered",
-     "crypto bitcoin wallet exchange withdrawal coins transfer platform"),
+    (
+        "Credit reporting",
+        "Wrong information on report",
+        "credit report bureau dispute inaccurate score experian equifax section",
+    ),
+    (
+        "Debt collection",
+        "Attempts to collect debt not owed",
+        "collector debt owed harassment phone calls validation agency threaten",
+    ),
+    (
+        "Mortgage",
+        "Trouble during payment process",
+        "mortgage escrow lender servicer foreclosure payment modification house",
+    ),
+    (
+        "Buy Now, Pay Later (BNPL)",
+        "Managing the loan or lease",
+        "bnpl installment installmentpay checkout split purchase refund merchant",
+    ),
+    (
+        "Virtual currency",
+        "Crypto asset not delivered",
+        "crypto bitcoin wallet exchange withdrawal coins transfer platform",
+    ),
 ]
 
 TEMPLATES = [
@@ -53,25 +68,29 @@ def synthetic_complaints(
             length = rng.integers(8, 30)
             body = " ".join(rng.choice(words + TEMPLATES[t_idx].split(), size=length))
             text = f"{TEMPLATES[t_idx]} {body}"
-            rows.append({
-                "complaint_id": 10_000 + t_idx * n_per_topic + i,
-                "date_received": day.strftime("%m/%d/%Y"),
-                "product": product,
-                "issue": issue,
-                "sub_issue": None,
-                "consumer_complaint_narrative": text,
-            })
+            rows.append(
+                {
+                    "complaint_id": 10_000 + t_idx * n_per_topic + i,
+                    "date_received": day.strftime("%m/%d/%Y"),
+                    "product": product,
+                    "issue": issue,
+                    "sub_issue": None,
+                    "consumer_complaint_narrative": text,
+                }
+            )
     df = pd.DataFrame(rows)
     # Add some narrative-less rows to exercise the Phase 1 filter.
-    no_narr = pd.DataFrame([
-        {
-            "complaint_id": 99_900 + j,
-            "date_received": dates[rng.integers(0, len(dates))].strftime("%m/%d/%Y"),
-            "product": "Other",
-            "issue": "None",
-            "sub_issue": None,
-            "consumer_complaint_narrative": None,
-        }
-        for j in range(20)
-    ])
+    no_narr = pd.DataFrame(
+        [
+            {
+                "complaint_id": 99_900 + j,
+                "date_received": dates[rng.integers(0, len(dates))].strftime("%m/%d/%Y"),
+                "product": "Other",
+                "issue": "None",
+                "sub_issue": None,
+                "consumer_complaint_narrative": None,
+            }
+            for j in range(20)
+        ]
+    )
     return pd.concat([df, no_narr], ignore_index=True)

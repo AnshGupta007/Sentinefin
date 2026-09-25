@@ -124,7 +124,9 @@ def pretrain_autoencoder(
             opt.step()
             losses.append(float(loss.item()))
         final_loss = float(np.mean(losses))
-        logger.info("AE pretrain epoch %d/%d recon loss %.4f", epoch + 1, cfg.pretrain_epochs, final_loss)
+        logger.info(
+            "AE pretrain epoch %d/%d recon loss %.4f", epoch + 1, cfg.pretrain_epochs, final_loss
+        )
     return ae, final_loss
 
 
@@ -150,9 +152,13 @@ def train_dec(
     cfg = cfg or DECConfig()
     set_seed(seed)
 
-    ae, pre_loss = pretrain_autoencoder(vectors, cfg, seed) if init_state is None else (
-        _ae_from_state(vectors.shape[1], cfg, init_state["autoencoder"]),
-        float(init_state.get("pretrain_recon_loss", float("nan"))),
+    ae, pre_loss = (
+        pretrain_autoencoder(vectors, cfg, seed)
+        if init_state is None
+        else (
+            _ae_from_state(vectors.shape[1], cfg, init_state["autoencoder"]),
+            float(init_state.get("pretrain_recon_loss", float("nan"))),
+        )
     )
 
     model = DECModel(ae, cfg.n_clusters)
@@ -163,9 +169,7 @@ def train_dec(
         # mechanism itself is the KL self-training below, not k-means.
         latents = _encode_all(model, torch.tensor(vectors, dtype=torch.float32), cfg.batch_size)
         km = KMeans(n_clusters=cfg.n_clusters, n_init=10, random_state=seed)
-        model.centroids.data = torch.tensor(
-            km.fit(latents).cluster_centers_, dtype=torch.float32
-        )
+        model.centroids.data = torch.tensor(km.fit(latents).cluster_centers_, dtype=torch.float32)
 
     data = torch.tensor(vectors, dtype=torch.float32)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
@@ -185,15 +189,13 @@ def train_dec(
         if it % update_interval == 0:
             q_full = _soft_assign_tensor(model, data, cfg.batch_size)
             assign_now = q_full.argmax(dim=1).cpu().numpy()
-            delta = (
-                float((assign_now != prev_assign).mean())
-                if prev_assign is not None
-                else 1.0
-            )
+            delta = float((assign_now != prev_assign).mean()) if prev_assign is not None else 1.0
             prev_assign = assign_now
             p_tensor = target_distribution(q_full)
             if it > 0 and delta < cfg.tol:
-                logger.info("DEC converged at iter %d with label change %.4f < tol %.4f", it, delta, cfg.tol)
+                logger.info(
+                    "DEC converged at iter %d with label change %.4f < tol %.4f", it, delta, cfg.tol
+                )
                 break
 
         model.train()
@@ -211,7 +213,13 @@ def train_dec(
             kl_total += float(loss.item()) * len(idx)
         it += 1
         if it % update_interval == 0 or it == 1:
-            logger.info("DEC iter %d/%d KL %.4f delta %.4f", it, max_iters, kl_total / max(len(data), 1), delta)
+            logger.info(
+                "DEC iter %d/%d KL %.4f delta %.4f",
+                it,
+                max_iters,
+                kl_total / max(len(data), 1),
+                delta,
+            )
         if it >= max_iters:
             stop = True
 
@@ -240,7 +248,9 @@ def _soft_assign_tensor(model: DECModel, data: torch.Tensor, batch_size: int) ->
     outs = []
     with torch.no_grad():
         for start in range(0, len(data), batch_size):
-            outs.append(model.soft_assign(model.autoencoder.encoder(data[start : start + batch_size])))
+            outs.append(
+                model.soft_assign(model.autoencoder.encoder(data[start : start + batch_size]))
+            )
     return torch.cat(outs)
 
 
@@ -315,13 +325,18 @@ def run_dec_over_windows(
         mask = (panel["window_id"] == w).to_numpy()
         vecs_w = vectors[mask]
         if len(vecs_w) < cfg.n_clusters:
-            logger.warning("Window %s has %d points < %d clusters; skipping DEC fine-tune.",
-                           w, len(vecs_w), cfg.n_clusters)
+            logger.warning(
+                "Window %s has %d points < %d clusters; skipping DEC fine-tune.",
+                w,
+                len(vecs_w),
+                cfg.n_clusters,
+            )
             continue
         model, metrics = train_dec(vecs_w, cfg, init_state=prev_state, seed=cfg.seed)
         centroids = model.centroids.detach().cpu().numpy()
-        assign = _soft_assign_numpy(model, torch.tensor(vecs_w, dtype=torch.float32),
-                                    cfg.batch_size).argmax(axis=1)
+        assign = _soft_assign_numpy(
+            model, torch.tensor(vecs_w, dtype=torch.float32), cfg.batch_size
+        ).argmax(axis=1)
         global_ids = tracker.register_window(centroids)
 
         sub = panel.loc[mask, ["complaint_id"]].copy()
@@ -339,12 +354,16 @@ def run_dec_over_windows(
             "recon_loss": metrics["pretrain_recon_loss"],
         }
         prev_state = {
-            "autoencoder": {k: v.detach().cpu().numpy() for k, v in model.autoencoder.state_dict().items()},
+            "autoencoder": {
+                k: v.detach().cpu().numpy() for k, v in model.autoencoder.state_dict().items()
+            },
             "centroids": centroids,
         }
 
-    assignments = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame(
-        columns=["complaint_id", "local_cluster", "global_cluster"]
+    assignments = (
+        pd.concat(rows, ignore_index=True)
+        if rows
+        else pd.DataFrame(columns=["complaint_id", "local_cluster", "global_cluster"])
     )
     ensure_dir(_cfg.PROCESSED_DATA_DIR)
     assignments.to_parquet(_cfg.PROCESSED_DATA_DIR / "dec_assignments.parquet", index=False)

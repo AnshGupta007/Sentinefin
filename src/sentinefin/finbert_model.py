@@ -30,7 +30,9 @@ DEFAULT_FINBERT_NAME = "ProsusAI/finbert"
 class FinBERTClassifierHead(nn.Module):
     """Deep non-linear classification head over 768-d FinBERT embeddings."""
 
-    def __init__(self, input_dim: int = 768, hidden_dim: int = 256, n_classes: int = 11, dropout: float = 0.2) -> None:
+    def __init__(
+        self, input_dim: int = 768, hidden_dim: int = 256, n_classes: int = 11, dropout: float = 0.2
+    ) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -70,7 +72,9 @@ def extract_finbert_embeddings(
 
     all_embeddings = []
     n = len(texts)
-    logger.info("Extracting FinBERT embeddings for %d complaint texts (batch_size=%d)...", n, batch_size)
+    logger.info(
+        "Extracting FinBERT embeddings for %d complaint texts (batch_size=%d)...", n, batch_size
+    )
 
     with torch.no_grad():
         for start_idx in range(0, n, batch_size):
@@ -139,7 +143,6 @@ def train_finbert_classifier(
     X_tr_t = torch.tensor(X_train_emb, dtype=torch.float32)
     y_tr_t = torch.tensor(y_train, dtype=torch.long)
     X_te_t = torch.tensor(X_test_emb, dtype=torch.float32)
-    y_te_t = torch.tensor(y_test, dtype=torch.long)
 
     train_ds = TensorDataset(X_tr_t, y_tr_t)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
@@ -156,7 +159,7 @@ def train_finbert_classifier(
 
     # 4. Training loop
     logger.info("Training FinBERT classification head for %d epochs...", epochs)
-    for epoch in range(epochs):
+    for _epoch in range(epochs):
         model.train()
         for batch_x, batch_y in train_loader:
             opt.zero_grad()

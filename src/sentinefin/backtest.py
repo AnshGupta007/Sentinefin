@@ -90,9 +90,15 @@ def run_backtest(
         result = run_pipeline(smoke=smoke, skip_eda=True)
         panel_t = result.panel[result.panel["date_received"] < cutoff]
         if panel_t.empty:
-            results.append(CaseResult(case["name"], case["recognition_date"],
-                                      case["recognition_basis"], matched=False,
-                                      notes="no pre-recognition data after filtering"))
+            results.append(
+                CaseResult(
+                    case["name"],
+                    case["recognition_date"],
+                    case["recognition_basis"],
+                    matched=False,
+                    notes="no pre-recognition data after filtering",
+                )
+            )
             continue
 
         # Score clusters against case vocabulary using the full-run alerts.
@@ -103,19 +109,27 @@ def run_backtest(
         if matched and ranked:
             first_alert_window = ranked[0].get("first_window")
             lead = months_between(first_alert_window, case["recognition_date"])
-            results.append(CaseResult(
-                name=case["name"],
-                recognition_date=case["recognition_date"],
-                recognition_basis=case["recognition_basis"],
-                matched=True,
-                first_alert_window=first_alert_window,
-                lead_time_months=-lead if lead < 0 else lead,
-                matched_cluster=cluster_id,
-            ))
+            results.append(
+                CaseResult(
+                    name=case["name"],
+                    recognition_date=case["recognition_date"],
+                    recognition_basis=case["recognition_basis"],
+                    matched=True,
+                    first_alert_window=first_alert_window,
+                    lead_time_months=-lead if lead < 0 else lead,
+                    matched_cluster=cluster_id,
+                )
+            )
         else:
-            results.append(CaseResult(case["name"], case["recognition_date"],
-                                      case["recognition_basis"], matched=False,
-                                      notes="no flagged cluster matched case vocabulary"))
+            results.append(
+                CaseResult(
+                    case["name"],
+                    case["recognition_date"],
+                    case["recognition_basis"],
+                    matched=False,
+                    notes="no flagged cluster matched case vocabulary",
+                )
+            )
 
     false_alarm_rate = _false_alarm_rate(full_run)
     report = {
@@ -142,7 +156,9 @@ def run_backtest(
             lines.append(f"- Lead time: {r.lead_time_months:.1f} months")
         else:
             lines.append(f"- Notes: {r.notes or 'system did not flag this pattern'}")
-    rate_val = false_alarm_rate.get("rate") if isinstance(false_alarm_rate, dict) else false_alarm_rate
+    rate_val = (
+        false_alarm_rate.get("rate") if isinstance(false_alarm_rate, dict) else false_alarm_rate
+    )
     rate_str = f"{rate_val:.2f}" if isinstance(rate_val, (int, float)) else "N/A"
     lines.append(f"False-alarm rate estimate: {rate_str}")
     (_cfg.OUTPUTS_DIR / "backtest_report.md").write_text("\n".join(lines), encoding="utf-8")
@@ -152,7 +168,8 @@ def run_backtest(
 def _narratives_by_cluster(result) -> dict[int, list[str]]:
     merged = result.assignments.merge(
         result.panel[["complaint_id", "consumer_complaint_narrative"]],
-        on="complaint_id", how="left",
+        on="complaint_id",
+        how="left",
     )
     out: dict[int, list[str]] = {}
     for g, sub in merged.groupby("global_cluster"):

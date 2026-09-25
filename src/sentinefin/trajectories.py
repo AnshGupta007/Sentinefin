@@ -36,9 +36,7 @@ def build_trajectories_from_frames(
     - volume_share: fraction of the window's complaints in this cluster
     - mean_dist: mean distance of member embeddings to their centroid
     """
-    merged = assignments.merge(
-        panel[["complaint_id", "window_id"]], on="complaint_id", how="left"
-    )
+    merged = assignments.merge(panel[["complaint_id", "window_id"]], on="complaint_id", how="left")
     # Compress raw embedding scale so mean_dist stays comparable to other features.
     latents = vectors / max(1.0, float(np.sqrt(vectors.shape[1])))
     id_to_pos = {cid: i for i, cid in enumerate(panel["complaint_id"].tolist())}
@@ -57,12 +55,15 @@ def build_trajectories_from_frames(
         for local_c in sorted(sub["local_cluster"].unique()):
             g = int(l2g[int(local_c)])
             pts = sub[sub["local_cluster"] == local_c]
-            pos = np.array([id_to_pos[cid] for cid in pts["complaint_id"] if cid in id_to_pos],
-                           dtype=int)
+            pos = np.array(
+                [id_to_pos[cid] for cid in pts["complaint_id"] if cid in id_to_pos], dtype=int
+            )
             volume = float(len(pts))
             if len(pos):
                 vecs = latents[pos]
-                mean_dist = float(np.linalg.norm(vecs - cents_w[int(local_c)][None, :], axis=1).mean())
+                mean_dist = float(
+                    np.linalg.norm(vecs - cents_w[int(local_c)][None, :], axis=1).mean()
+                )
             else:
                 mean_dist = 0.0
             shift = (

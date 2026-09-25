@@ -130,7 +130,6 @@ def train_proposed_cnn_rnn(
     X_tr_t = torch.tensor(X_train_vecs, dtype=torch.float32)
     y_tr_t = torch.tensor(y_train, dtype=torch.long)
     X_te_t = torch.tensor(X_test_vecs, dtype=torch.float32)
-    y_te_t = torch.tensor(y_test, dtype=torch.long)
 
     train_ds = TensorDataset(X_tr_t, y_tr_t)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
@@ -149,7 +148,7 @@ def train_proposed_cnn_rnn(
     loss_fn = nn.CrossEntropyLoss()
 
     logger.info("Training Proposed CNN-RNN for %d epochs...", epochs)
-    for epoch in range(epochs):
+    for _epoch in range(epochs):
         model.train()
         for batch_x, batch_y in train_loader:
             optimizer.zero_grad()
