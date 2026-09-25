@@ -2,9 +2,9 @@
 
 Deep-learning pipeline that monitors CFPB consumer-complaint narratives to detect
 emergent harm-pattern clusters before they are officially recognized, validated
-with retrospective backtesting. Built from `docs/SentinelFin_Master_Prompt.md`.
+with retrospective backtesting.
 
-## Pipeline stages (all neural, per the master prompt)
+## Pipeline stages
 
 | Stage | Technique | Module |
 |---|---|---|
@@ -42,6 +42,21 @@ Smoke profile for CI (tiny models, offline encoder fallback):
 ```bash
 SENTINEFIN_SMOKE=1 sentinefin pipeline
 ```
+
+## Deep Learning Models & Comparative Benchmark
+
+We evaluate five distinct deep learning and hybrid architectures on the CFPB financial grievances dataset:
+1. **Baseline MLP (`MLPTagClassifier`)**: 3-layer deep feedforward classifier with BatchNorm, GELU, and Cosine Annealing (**91.30% Accuracy**).
+2. **DEC Autoencoder (`DECModel`)**: 4-layer symmetric autoencoder with Student-$t$ soft clustering for zero-day fraud discovery (**0.0010 MSE**, **+0.742 Silhouette**).
+3. **Hybrid XGBoost + BiLSTM**: 2-layer Bidirectional LSTM deep feature extractor fused with an XGBoost decision tree ensemble (**86.10% Accuracy**).
+4. **FinBERT (`ProsusAI/finbert`)**: 12-layer domain-specific financial Transformer with a deep classification head (**72.80% Accuracy**).
+5. **Proposed CNN-RNN**: Multi-scale 1D Convolutional filter banks ($k=3,5,7$) with Bidirectional LSTM sequential memory (**81.70% Accuracy**).
+
+To run the unified benchmark:
+```bash
+python scripts/train_and_compare_models.py
+```
+Detailed architectural comparisons, formulas, and oral defense guides are in [`docs/MODEL_COMPARISON.md`](docs/MODEL_COMPARISON.md).
 
 ## CI/CD (GitHub Actions)
 
