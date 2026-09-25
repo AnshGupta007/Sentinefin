@@ -16,7 +16,9 @@ dependencies = [
     "matplotlib",
     "torch",
     "sentence-transformers",
+    "transformers",
     "umap-learn",
+    "xgboost",
 ]
 
 [project.optional-dependencies]

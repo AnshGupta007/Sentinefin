@@ -15,8 +15,12 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-import xgboost as xgb
 from torch.utils.data import DataLoader, TensorDataset
+
+try:
+    import xgboost as xgb
+except ImportError:
+    xgb = None
 
 from .model_evaluator import compute_metrics
 from .utils import set_seed
@@ -104,6 +108,10 @@ def train_hybrid_xgb_bilstm(
     seed: int = 17,
 ) -> tuple[xgb.XGBClassifier, BiLSTMFeatureExtractor, dict[str, Any]]:
     """Train the Hybrid XGBoost + BiLSTM pipeline and compute evaluation metrics."""
+    if xgb is None:
+        raise ImportError(
+            "xgboost is required for Hybrid XGBoost + BiLSTM. Install it with `pip install xgboost`."
+        )
     set_seed(seed)
     start_time = time.time()
     device = torch.device("cpu")
