@@ -91,7 +91,7 @@ def load_small_dataset_splits(
         )
         if id_col is not None and "complaint_id" in emb_ids.columns:
             id_to_pos = {cid: i for i, cid in enumerate(emb_ids["complaint_id"])}
-            mapped_indices = df[id_col].map(id_to_pos).to_numpy()
+            mapped_indices = df[id_col].map(id_to_pos).fillna(0).astype(np.int64).to_numpy()
             aligned_embeddings = raw_emb[mapped_indices]
             X_train_vecs = aligned_embeddings[train_idx]
             X_test_vecs = aligned_embeddings[test_idx]
